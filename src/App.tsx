@@ -114,7 +114,7 @@ const gateTranslations = {
     readyText: 'Ready to watch? Enter your birthday date',
     getStarted: 'Get Started',
     chooseBirthdayMsg: 'Choose your birthday to open your premiere.',
-    premiereFooter: 'A private birthday premiere',
+    premiereFooter: 'See, I remembered your birthday date 😎',
     // Sign In Screen
     signInTitle: 'Enter your info to sign in',
     signInSubtitle: 'Or get started with a new account.',
@@ -134,7 +134,7 @@ const gateTranslations = {
     readyText: 'देखने के लिए तैयार हैं? अपनी जन्मतिथि दर्ज करें',
     getStarted: 'शुरू करें',
     chooseBirthdayMsg: 'अपना प्रीमियर खोलने के लिए अपनी जन्मतिथि चुनें।',
-    premiereFooter: 'एक प्राइवेट बर्थडे प्रीमियर',
+    premiereFooter: 'देखो, मुझे आपकी जन्मतिथि याद थी 😎',
     // Sign In Screen
     signInTitle: 'साइन इन करने के लिए अपनी जानकारी दर्ज करें',
     signInSubtitle: 'या नए खाते के साथ शुरुआत करें।',
@@ -320,7 +320,7 @@ function BirthdayGate({ onUnlock }: { onUnlock: (selectedDate: string) => void }
         </div>
 
         {/* Bottom subtle text */}
-        <div className="relative z-10 pb-6 text-center text-xs text-white/40">
+        <div className="relative z-10 pb-6 text-center text-xs text-white/60 font-medium">
           {t.premiereFooter}
         </div>
       </main>
@@ -416,7 +416,7 @@ function BirthdayGate({ onUnlock }: { onUnlock: (selectedDate: string) => void }
       </div>
 
       {/* Subtle bottom spacer for balance */}
-      <div className="relative z-10 pb-6 text-center text-xs text-white/40">
+      <div className="relative z-10 pb-6 text-center text-xs text-white/60 font-medium">
         {t.premiereFooter}
       </div>
     </main>
