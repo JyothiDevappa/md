@@ -4,6 +4,23 @@ import { ArrowDown, ArrowLeft, ArrowRight, CalendarDays, ChevronDown, Clapperboa
 // EDIT THIS DATE to the birthday being celebrated. Date format: YYYY-MM-DD.
 export const EXPECTED_BIRTHDAY = '1999-11-15';
 
+export function isEligibleBirthday(input: string): boolean {
+  if (!input) return false;
+  const val = input.trim();
+  if (val === EXPECTED_BIRTHDAY) return true;
+
+  const parts = val.split(/[-/.\s]+/);
+  if (parts.length === 3) {
+    // YYYY-MM-DD
+    if (parts[0] === '1999' && parts[1] === '11' && parts[2] === '15') return true;
+    // DD-MM-YYYY
+    if (parts[0] === '15' && parts[1] === '11' && parts[2] === '1999') return true;
+    // MM-DD-YYYY
+    if (parts[0] === '11' && parts[1] === '15' && parts[2] === '1999') return true;
+  }
+  return false;
+}
+
 type Memory = {
   id: string;
   title: string;
@@ -114,6 +131,7 @@ const gateTranslations = {
     readyText: 'Ready to watch? Enter your birthday date',
     getStarted: 'Get Started',
     chooseBirthdayMsg: 'Choose your birthday to open your premiere.',
+    notEligibleMsg: "You're not eligible! Kindly know his birthday date",
     premiereFooter: 'See, I remembered your birthday date 😎',
     // Sign In Screen
     signInTitle: 'Enter your info to sign in',
@@ -134,6 +152,7 @@ const gateTranslations = {
     readyText: 'देखने के लिए तैयार हैं? अपनी जन्मतिथि दर्ज करें',
     getStarted: 'शुरू करें',
     chooseBirthdayMsg: 'अपना प्रीमियर खोलने के लिए अपनी जन्मतिथि चुनें।',
+    notEligibleMsg: 'आप पात्र नहीं हैं! कृपया पहले उनकी सही जन्मतिथि जानें।',
     premiereFooter: 'देखो, मुझे आपकी जन्मतिथि याद थी 😎',
     // Sign In Screen
     signInTitle: 'साइन इन करने के लिए अपनी जानकारी दर्ज करें',
@@ -211,6 +230,14 @@ function BirthdayGate({ onUnlock }: { onUnlock: (selectedDate: string) => void }
       window.setTimeout(() => setShaking(false), 500);
       return;
     }
+
+    if (!isEligibleBirthday(birthday)) {
+      setMessage(t.notEligibleMsg);
+      setShaking(true);
+      window.setTimeout(() => setShaking(false), 500);
+      return;
+    }
+
     setMessage('');
     onUnlock(birthday);
   }
@@ -2165,7 +2192,8 @@ function NetflixIntroPlayer({ onFinish }: { onFinish: () => void }) {
 function App() {
   const [unlocked, setUnlocked] = useState(() => {
     try {
-      return localStorage.getItem('manuflix_unlocked') === 'true';
+      const savedDate = localStorage.getItem('manuflix_birthday');
+      return localStorage.getItem('manuflix_unlocked') === 'true' && isEligibleBirthday(savedDate || '');
     } catch {
       return false;
     }
