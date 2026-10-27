@@ -1619,7 +1619,6 @@ function Collection({ onLock }: { onLock?: () => void }) {
   const [activeCategory, setActiveCategory] = useState('All memories');
   const [selected, setSelected] = useState<Memory | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [fullPlayerOpen, setFullPlayerOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [celebrationStep, setCelebrationStep] = useState<'invite' | 'cake' | 'happy_birthday' | 'revealed'>('invite');
@@ -1632,12 +1631,6 @@ function Collection({ onLock }: { onLock?: () => void }) {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const handleBlowCandles = () => {
@@ -1667,7 +1660,6 @@ function Collection({ onLock }: { onLock?: () => void }) {
 
   function chooseCategory(category: string) {
     setActiveCategory(category);
-    setMenuOpen(false);
     document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -1688,10 +1680,6 @@ function Collection({ onLock }: { onLock?: () => void }) {
         <div className="mx-auto flex h-[68px] max-w-[1440px] items-center justify-between px-5 sm:px-9 lg:px-14">
           <div className="flex items-center gap-8">
             <a href="#top" aria-label="Manuflix home" className="font-editorial text-[25px] tracking-[-.06em] text-[#f5eee6] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Manu<span className="italic text-[#E50914]">flix</span></a>
-            <nav className="hidden items-center gap-8 text-[12px] text-[#bcb3ba] sm:flex">
-              <a href="#collection" className="transition hover:text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">The collection</a>
-              <a href="#dedication" className="transition hover:text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">A note for you</a>
-            </nav>
           </div>
 
           {/* Right side: Mini profile avatar icon — clicks to go to very first login page */}
@@ -1712,15 +1700,8 @@ function Collection({ onLock }: { onLock?: () => void }) {
                 </svg>
               </div>
             </button>
-
-            <button aria-label="Open collection navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-[#e7ded8] sm:hidden"><ChevronDown size={17} className={`transition-transform ${menuOpen ? 'rotate-180' : ''}`} /></button>
           </div>
         </div>
-        {menuOpen && <div className="border-t border-white/10 bg-[#1e1e1e] px-5 py-4 sm:hidden">
-          <button onClick={() => chooseCategory('All memories')} className="block py-2 text-sm text-[#eee7e1]">The collection</button>
-          <button onClick={() => { setNoteOpen(true); setMenuOpen(false); }} className="block py-2 text-sm text-[#eee7e1]">A note for you</button>
-          <button onClick={() => { onLock?.(); setMenuOpen(false); }} className="block py-2 text-sm text-[#E50914] font-medium border-t border-white/10 mt-2 pt-2 text-left w-full">Sign out / Log in again</button>
-        </div>}
       </header>
 
       <section id="top" className="relative min-h-[90vh] pt-[68px]">
@@ -2092,7 +2073,7 @@ function Collection({ onLock }: { onLock?: () => void }) {
 
       <footer className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-4 px-5 py-8 text-center sm:flex-row sm:px-9 sm:text-left lg:px-14">
         <a href="#top" className="font-editorial text-xl tracking-[-.05em] text-[#eee7e0]">Manu<span className="italic text-[#E50914]">flix</span></a>
-        <p className="text-[11px] text-[#827984]">A private little universe. Made for you, and only you.</p>
+        <p className="text-[11px] text-[#827984]">Happy Birthday</p>
         <div className="flex items-center gap-5">
           {onLock && (
             <button
