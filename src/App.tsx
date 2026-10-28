@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, CalendarDays, ChevronDown, Clapperboard, Film, Heart, Languages, LockKeyhole, Maximize, Minimize, Pause, Play, RotateCcw, RotateCw, Smartphone, Sparkles, Volume2, VolumeX, X } from 'lucide-react';
-import { playCandleBlowSound, playFireworkBlast, playHappyBirthdaySong, speakHappyBirthday, stopCelebrationAudio, detectMicBlow } from './lib/celebration-audio';
+import { playCandleBlowSound, playFireworkBlast, playHappyBirthdaySong, startCelebrationFireworksShow, stopCelebrationAudio, detectMicBlow } from './lib/celebration-audio';
 
 // EDIT THIS DATE to the birthday being celebrated. Date format: YYYY-MM-DD.
 export const EXPECTED_BIRTHDAY = '1999-11-15';
@@ -516,65 +516,56 @@ function NetflixFullscreenPlayer({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scrubberRef = useRef<HTMLDivElement>(null);
+
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLandscapeLocked, setIsLandscapeLocked] = useState(false);
-  const [forceLandscape, setForceLandscape] = useState(() => {
-    return typeof window !== 'undefined' && window.innerWidth < window.innerHeight;
-  });
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubTime, setScrubTime] = useState(0);
+  const [skipNotice, setSkipNotice] = useState<{ text: string; side: 'left' | 'right' } | null>(null);
+
   const hideTimeoutRef = useRef<number | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number }>({ time: 0, x: 0 });
+  const skipNoticeTimeoutRef = useRef<number | null>(null);
 
-  // Auto-detect orientation on resize
+  // Auto-hide controls after 5s of inactivity while playing
+  const resetHideTimer = () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    if (isPlaying && !isScrubbing) {
+      hideTimeoutRef.current = window.setTimeout(() => {
+        setShowControls(false);
+      }, 5000);
+    }
+  };
+
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= window.innerHeight) {
-        setForceLandscape(false);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
+    if (isPlaying && showControls && !isScrubbing) {
+      resetHideTimer();
+    } else if (!isPlaying && hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+    }
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
-  }, []);
+  }, [isPlaying, showControls, isScrubbing]);
 
-  // Request fullscreen, orientation lock, and start playback on mount
+  // Initial playback & keyboard listeners
   useEffect(() => {
-    const el = containerRef.current;
     const video = videoRef.current;
-
     if (video) {
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.then(() => setIsPlaying(true)).catch(() => {
           video.muted = true;
           setIsMuted(true);
-          video.play().then(() => setIsPlaying(true)).catch(console.error);
+          video.play().then(() => setIsPlaying(true)).catch(() => {});
         });
       }
     }
-
-    if (el) {
-      if (el.requestFullscreen) {
-        el.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => { });
-      } else if ((el as any).webkitRequestFullscreen) {
-        (el as any).webkitRequestFullscreen();
-        setIsFullscreen(true);
-      }
-    }
-
-    try {
-      if (screen.orientation && (screen.orientation as any).lock) {
-        (screen.orientation as any).lock('landscape')
-          .then(() => setIsLandscapeLocked(true))
-          .catch(() => { });
-      }
-    } catch { }
 
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -583,6 +574,7 @@ function NetflixFullscreenPlayer({
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      resetHideTimer();
       if (e.key === 'Escape') {
         onClose();
       } else if (e.key === ' ' || e.key === 'k') {
@@ -606,62 +598,18 @@ function NetflixFullscreenPlayer({
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
-      try {
-        if (screen.orientation && screen.orientation.unlock) {
-          screen.orientation.unlock();
-        }
-      } catch { }
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => { });
-      }
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      if (skipNoticeTimeoutRef.current) clearTimeout(skipNoticeTimeoutRef.current);
     };
   }, [onClose]);
-
-  const startHideTimer = () => {
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    hideTimeoutRef.current = window.setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
-      }
-    }, 2800);
-  };
-
-  useEffect(() => {
-    if (isPlaying && showControls) {
-      startHideTimer();
-    }
-    return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    };
-  }, [isPlaying, showControls]);
-
-  // Clicking anywhere on screen toggles controls visibility smoothly like Netflix
-  const handleScreenClick = () => {
-    setShowControls((prev) => {
-      const next = !prev;
-      if (next && isPlaying) {
-        startHideTimer();
-      } else if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-      }
-      return next;
-    });
-  };
-
-  const handleUserActivity = () => {
-    if (!showControls) {
-      setShowControls(true);
-    }
-    if (isPlaying) {
-      startHideTimer();
-    }
-  };
 
   const togglePlay = () => {
     if (videoRef.current) {
       if (videoRef.current.paused) {
-        videoRef.current.play();
-        setIsPlaying(true);
+        videoRef.current.play().then(() => {
+          setIsPlaying(true);
+          resetHideTimer();
+        }).catch(() => {});
       } else {
         videoRef.current.pause();
         setIsPlaying(false);
@@ -679,7 +627,20 @@ function NetflixFullscreenPlayer({
 
   const seekRelative = (seconds: number) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + seconds));
+      const newTime = Math.max(0, Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + seconds));
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+      resetHideTimer();
+
+      // Show quick skip feedback
+      if (skipNoticeTimeoutRef.current) clearTimeout(skipNoticeTimeoutRef.current);
+      setSkipNotice({
+        text: seconds > 0 ? '+10s ⏩' : '⏪ -10s',
+        side: seconds > 0 ? 'right' : 'left',
+      });
+      skipNoticeTimeoutRef.current = window.setTimeout(() => {
+        setSkipNotice(null);
+      }, 700);
     }
   };
 
@@ -687,87 +648,115 @@ function NetflixFullscreenPlayer({
     const el = containerRef.current;
     if (!document.fullscreenElement && el) {
       if (el.requestFullscreen) {
-        el.requestFullscreen().catch(() => { });
+        el.requestFullscreen().catch(() => {});
       } else if ((el as any).webkitRequestFullscreen) {
         (el as any).webkitRequestFullscreen();
       }
-    } else {
+    } else if (document.fullscreenElement) {
       if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => { });
+        document.exitFullscreen().catch(() => {});
       }
     }
   };
 
-  const toggleOrientationManual = () => {
-    try {
-      if (screen.orientation && (screen.orientation as any).lock) {
-        if (isLandscapeLocked) {
-          screen.orientation.unlock();
-          setIsLandscapeLocked(false);
-          setForceLandscape(false);
-        } else {
-          (screen.orientation as any).lock('landscape')
-            .then(() => setIsLandscapeLocked(true))
-            .catch(() => {
-              setForceLandscape((prev) => !prev);
-            });
-        }
-      } else {
-        setForceLandscape((prev) => !prev);
+  // Screen tap handler (Netflix tap to toggle controls or double tap to skip 10s)
+  const handleScreenTap = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const now = Date.now();
+    const timeDiff = now - lastTapRef.current.time;
+    const distanceDiff = Math.abs(clickX - lastTapRef.current.x);
+
+    // Double tap detection (within 320ms and within 90px)
+    if (timeDiff < 320 && distanceDiff < 90) {
+      if (clickX < rect.width * 0.38) {
+        seekRelative(-10);
+        lastTapRef.current = { time: 0, x: 0 };
+        return;
+      } else if (clickX > rect.width * 0.62) {
+        seekRelative(10);
+        lastTapRef.current = { time: 0, x: 0 };
+        return;
       }
-    } catch {
-      setForceLandscape((prev) => !prev);
     }
+
+    lastTapRef.current = { time: now, x: clickX };
+
+    // Single tap toggles controls smoothly
+    setShowControls((prev) => {
+      const next = !prev;
+      if (next) {
+        resetHideTimer();
+      } else if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+      return next;
+    });
   };
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) {
+    if (videoRef.current && !isScrubbing) {
       setCurrentTime(videoRef.current.currentTime);
       setDuration(videoRef.current.duration || 0);
     }
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const targetTime = Number(e.target.value);
+  // Smooth Scrubber Pointer handlers (Touch + Mouse unified)
+  const calcScrubTime = (clientX: number): number => {
+    if (!scrubberRef.current) return 0;
+    const rect = scrubberRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return ratio * (duration || 0);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setIsScrubbing(true);
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    const target = calcScrubTime(e.clientX);
+    setScrubTime(target);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbing) return;
+    e.stopPropagation();
+    const target = calcScrubTime(e.clientX);
+    setScrubTime(target);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbing) return;
+    e.stopPropagation();
+    const target = calcScrubTime(e.clientX);
+    setIsScrubbing(false);
     if (videoRef.current) {
-      videoRef.current.currentTime = targetTime;
-      setCurrentTime(targetTime);
+      videoRef.current.currentTime = target;
+      setCurrentTime(target);
     }
+    resetHideTimer();
   };
 
   const formatTime = (secs: number) => {
-    if (isNaN(secs)) return '00:00';
+    if (isNaN(secs) || secs < 0) return '00:00';
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const activeTime = isScrubbing ? scrubTime : currentTime;
+  const progressPercent = duration > 0 ? (activeTime / duration) * 100 : 0;
 
   return (
     <div
       ref={containerRef}
-      onMouseMove={handleUserActivity}
-      onTouchStart={handleUserActivity}
-      onClick={handleScreenClick}
-      style={{
-        cursor: showControls ? 'default' : 'none',
-        ...(forceLandscape ? {
-          transform: 'rotate(90deg)',
-          transformOrigin: 'top left',
-          position: 'fixed',
-          top: 0,
-          left: '100%',
-          width: '100vh',
-          height: '100vw',
-          maxWidth: '100vh',
-          maxHeight: '100vw',
-          zIndex: 9999,
-        } : {})
+      onMouseMove={() => {
+        if (!showControls) setShowControls(true);
+        resetHideTimer();
       }}
-      className="fixed inset-0 z-[100] flex flex-col justify-between overflow-hidden bg-black select-none"
+      className="fixed inset-0 z-[100] h-[100dvh] w-full bg-black flex flex-col justify-between overflow-hidden select-none touch-manipulation"
     >
-      {/* Fullscreen Video Element */}
+      {/* 🎬 Fullscreen Video Element */}
       <video
         ref={videoRef}
         src={src}
@@ -785,49 +774,88 @@ function NetflixFullscreenPlayer({
         className="absolute inset-0 h-full w-full object-contain pointer-events-none"
       />
 
-      {/* Top Header Bar */}
+      {/* 📱 Fullscreen Tap Backdrop (Click / Tap to toggle controls or double-tap skip) */}
       <div
-        className={`relative z-20 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 ease-in-out ${
-          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        data-testid="player-tap-backdrop"
+        onClick={handleScreenTap}
+        className="absolute inset-0 z-10 cursor-pointer"
+        aria-label="Tap to show or hide playback controls"
+      />
+
+      {/* ⏩ Quick Skip Ripple Notice */}
+      {skipNotice && (
+        <div
+          className={`pointer-events-none absolute top-1/2 -translate-y-1/2 z-30 flex items-center justify-center rounded-full bg-black/80 px-6 py-4 text-white text-base sm:text-lg font-bold backdrop-blur-md shadow-2xl border border-white/20 animate-pulse ${
+            skipNotice.side === 'left' ? 'left-[15%]' : 'right-[15%]'
+          }`}
+        >
+          {skipNotice.text}
+        </div>
+      )}
+
+      {/* 🔝 Top Header Bar */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`relative z-20 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-b from-black/95 via-black/50 to-transparent transition-all duration-300 ease-in-out ${
+          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
         }`}
       >
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
+            data-testid="button-player-back"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-90 cursor-pointer shadow-lg border border-white/20"
             title="Exit player (Esc)"
           >
-            <ArrowLeft size={22} />
+            <ArrowLeft size={24} />
           </button>
-          <span className="text-sm sm:text-base font-semibold text-white drop-shadow">
-            {title}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-sm sm:text-base font-bold text-white drop-shadow">
+              {title}
+            </span>
+            <span className="text-[11px] font-bold tracking-widest text-[#E50914] uppercase">
+              {subtitle}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); toggleOrientationManual(); }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
-            title={forceLandscape ? 'Exit rotate' : 'Rotate to landscape'}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleMute();
+            }}
+            className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-90 cursor-pointer border border-white/10"
+            title={isMuted ? 'Unmute' : 'Mute'}
           >
-            <Smartphone size={20} className={forceLandscape ? 'text-[#E50914]' : ''} />
+            {isMuted ? <VolumeX size={20} className="text-[#FF4D4D]" /> : <Volume2 size={20} />}
           </button>
 
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
-            title="Toggle Fullscreen"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFullscreen();
+            }}
+            className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-90 cursor-pointer border border-white/10"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
           >
             {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
           </button>
 
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
+            data-testid="button-player-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-90 cursor-pointer border border-white/10"
             title="Close"
           >
             <X size={20} />
@@ -835,84 +863,111 @@ function NetflixFullscreenPlayer({
         </div>
       </div>
 
-      {/* Big Center Quick Action (visible when controls shown) */}
+      {/* ⏯️ Big Center Quick Action Buttons */}
       <div
-        className={`relative z-10 mx-auto flex items-center justify-center gap-8 sm:gap-14 transition-opacity duration-300 ease-in-out ${
-          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        onClick={(e) => e.stopPropagation()}
+        className={`relative z-20 mx-auto flex items-center justify-center gap-6 sm:gap-14 transition-all duration-300 ease-in-out ${
+          showControls ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
         }`}
       >
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); seekRelative(-10); }}
-          className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:scale-110 hover:bg-black/80 active:scale-95 cursor-pointer"
+          data-testid="button-player-rewind"
+          onClick={(e) => {
+            e.stopPropagation();
+            seekRelative(-10);
+          }}
+          className="flex h-13 w-13 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:scale-110 hover:bg-black/80 active:scale-90 cursor-pointer shadow-xl border border-white/15"
           title="Rewind 10s"
         >
-          <RotateCcw size={28} />
+          <RotateCcw size={26} />
+          <span className="sr-only">Rewind 10s</span>
         </button>
 
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-          className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[#E50914] text-white shadow-2xl transition hover:scale-105 hover:bg-[#c11119] active:scale-95 cursor-pointer"
+          data-testid="button-player-toggle-play"
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePlay();
+          }}
+          className="flex h-18 w-18 sm:h-22 sm:w-22 items-center justify-center rounded-full bg-[#E50914] text-white shadow-[0_0_35px_rgba(229,9,20,0.7)] transition hover:scale-105 hover:bg-[#c11119] active:scale-90 cursor-pointer border-2 border-white/20"
           title={isPlaying ? 'Pause' : 'Play'}
         >
-          {isPlaying ? <Pause size={38} fill="white" /> : <Play size={38} fill="white" className="ml-1" />}
+          {isPlaying ? <Pause size={36} fill="white" /> : <Play size={36} fill="white" className="ml-1" />}
         </button>
 
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); seekRelative(10); }}
-          className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:scale-110 hover:bg-black/80 active:scale-95 cursor-pointer"
+          data-testid="button-player-forward"
+          onClick={(e) => {
+            e.stopPropagation();
+            seekRelative(10);
+          }}
+          className="flex h-13 w-13 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:scale-110 hover:bg-black/80 active:scale-90 cursor-pointer shadow-xl border border-white/15"
           title="Forward 10s"
         >
-          <RotateCw size={28} />
+          <RotateCw size={26} />
+          <span className="sr-only">Forward 10s</span>
         </button>
       </div>
 
-      {/* Bottom Control Bar */}
+      {/* 🔽 Bottom Netflix Scrubber & Controls Bar */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative z-20 px-4 sm:px-8 pb-5 sm:pb-8 pt-6 bg-gradient-to-t from-black/95 via-black/50 to-transparent transition-opacity duration-300 ease-in-out ${
-          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`relative z-20 px-4 sm:px-8 pb-5 sm:pb-8 pt-6 bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-all duration-300 ease-in-out ${
+          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
       >
-        {/* Scrubber Progress Bar */}
-        <div className="relative mb-3 flex items-center gap-3">
-          <div className="relative flex-1 group py-2 cursor-pointer">
-            <input
-              type="range"
-              min={0}
-              max={duration || 100}
-              step={0.1}
-              value={currentTime}
-              onChange={handleSeek}
-              className="absolute inset-0 h-full w-full opacity-0 cursor-pointer z-10"
-            />
-            {/* Background track */}
-            <div className="h-1 sm:h-1.5 w-full rounded-full bg-white/30 overflow-hidden group-hover:h-2 transition-all">
+        {/* Scrubber Progress Bar with generous touch area & time tooltip */}
+        <div className="relative mb-2 flex items-center gap-3">
+          <div
+            ref={scrubberRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            className="relative flex-1 py-4 cursor-pointer group touch-none"
+          >
+            {/* Hover / Scrub Floating Time Tooltip */}
+            {isScrubbing && (
               <div
-                className="h-full bg-[#E50914] transition-all"
+                className="absolute -top-7 -translate-x-1/2 rounded bg-black/90 px-2 py-0.5 text-[11px] font-mono font-bold text-white shadow-md border border-white/20 pointer-events-none"
+                style={{ left: `${Math.max(4, Math.min(96, progressPercent))}%` }}
+              >
+                {formatTime(activeTime)}
+              </div>
+            )}
+
+            {/* Background Track */}
+            <div className="h-1.5 sm:h-2 w-full rounded-full bg-white/25 overflow-hidden transition-all group-hover:h-2.5">
+              <div
+                className="h-full bg-[#E50914] rounded-full"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            {/* Scrubber thumb */}
+
+            {/* Red & White Thumb */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full bg-[#E50914] shadow-md transition-transform pointer-events-none group-hover:scale-125"
-              style={{ left: `calc(${progressPercent}% - 7px)` }}
+              className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-white border-2 border-[#E50914] shadow-[0_0_10px_rgba(229,9,20,0.8)] pointer-events-none transition-transform ${
+                isScrubbing ? 'scale-125 ring-4 ring-[#E50914]/40' : 'group-hover:scale-110'
+              }`}
+              style={{ left: `calc(${progressPercent}% - 8px)` }}
             />
           </div>
-          <span className="font-mono text-xs sm:text-sm text-white/80 shrink-0">
-            {formatTime(currentTime)} / {formatTime(duration)}
+
+          <span className="font-mono text-xs sm:text-sm text-white/90 shrink-0 font-medium drop-shadow">
+            {formatTime(activeTime)} / {formatTime(duration)}
           </span>
         </div>
 
-        {/* Controls row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 sm:gap-6">
+        {/* Bottom Actions Row */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center gap-4 sm:gap-6">
             <button
               type="button"
               onClick={togglePlay}
-              className="text-white hover:text-[#E50914] transition cursor-pointer"
+              className="text-white hover:text-[#E50914] transition cursor-pointer active:scale-90"
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
@@ -921,7 +976,7 @@ function NetflixFullscreenPlayer({
             <button
               type="button"
               onClick={() => seekRelative(-10)}
-              className="flex items-center gap-1 text-xs text-white/80 hover:text-white transition cursor-pointer"
+              className="flex items-center gap-1 text-xs text-white/80 hover:text-white transition cursor-pointer active:scale-90"
               title="Rewind 10s"
             >
               <RotateCcw size={20} />
@@ -931,7 +986,7 @@ function NetflixFullscreenPlayer({
             <button
               type="button"
               onClick={() => seekRelative(10)}
-              className="flex items-center gap-1 text-xs text-white/80 hover:text-white transition cursor-pointer"
+              className="flex items-center gap-1 text-xs text-white/80 hover:text-white transition cursor-pointer active:scale-90"
               title="Forward 10s"
             >
               <RotateCw size={20} />
@@ -941,27 +996,18 @@ function NetflixFullscreenPlayer({
             <button
               type="button"
               onClick={toggleMute}
-              className="text-white hover:text-white/80 transition cursor-pointer"
+              className="text-white hover:text-white/80 transition cursor-pointer active:scale-90"
               title={isMuted ? 'Unmute' : 'Mute'}
             >
-              {isMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+              {isMuted ? <VolumeX size={22} className="text-[#FF4D4D]" /> : <Volume2 size={22} />}
             </button>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-5">
-            <button
-              type="button"
-              onClick={toggleOrientationManual}
-              className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition cursor-pointer"
-              title="Turn landscape"
-            >
-              <Smartphone size={18} className="rotate-90" />
-            </button>
-
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={toggleFullscreen}
-              className="text-white hover:text-white/80 transition cursor-pointer"
+              className="text-white hover:text-white/80 transition cursor-pointer active:scale-90 p-1"
               title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             >
               {isFullscreen ? <Minimize size={22} /> : <Maximize size={22} />}
@@ -1474,7 +1520,11 @@ function CelebrationBalloons({ showLeftBouquet = true }: { showLeftBouquet?: boo
   );
 }
 
-function BirthdayCakeWithCandles({ lit }: { lit: boolean }) {
+function BirthdayCakeWithCandles({ lit, blowIntensity = 0 }: { lit: boolean; blowIntensity?: number }) {
+  const tiltDeg = lit && blowIntensity > 0 ? Math.min(38, blowIntensity * 42) : 0;
+  const flameScaleY = lit && blowIntensity > 0 ? Math.max(0.5, 1 - blowIntensity * 0.4) : 1;
+  const flameScaleX = lit && blowIntensity > 0 ? Math.min(1.25, 1 + blowIntensity * 0.25) : 1;
+
   return (
     <div className="relative mx-auto flex flex-col items-center select-none py-2">
       <div className="absolute bottom-2 h-14 w-64 rounded-full bg-[#E50914]/30 blur-xl pointer-events-none" />
@@ -1544,12 +1594,28 @@ function BirthdayCakeWithCandles({ lit }: { lit: boolean }) {
           </text>
         </g>
 
+        {/* Dynamic Wind Stream / Breath Gust when user blows */}
+        {lit && blowIntensity > 0 && (
+          <g className="animate-pulse" opacity={Math.min(1, blowIntensity * 1.3)}>
+            <path d="M 50 68 Q 110 58 170 64 T 235 60" stroke="#00E5FF" strokeWidth="2.2" strokeLinecap="round" strokeDasharray="6 4" fill="none" opacity="0.8" />
+            <path d="M 65 80 Q 120 70 180 76 T 245 72" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeDasharray="8 6" fill="none" opacity="0.9" />
+            <path d="M 80 90 Q 130 82 190 86 T 255 83" stroke="#FFE066" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="5 5" fill="none" opacity="0.75" />
+          </g>
+        )}
+
         {/* Candle 1 (Left) */}
         <g transform="translate(108, 62)">
           <rect x="-4" y="10" width="8" height="36" rx="2" fill="url(#candleStick)" />
           <line x1="0" y1="10" x2="0" y2="4" stroke="#333" strokeWidth="1.5" strokeLinecap="round" />
           {lit ? (
-            <g className="animate-flame">
+            <g
+              className="animate-flame"
+              style={{
+                transformOrigin: '0px 4px',
+                transform: tiltDeg > 0 ? `rotate(${tiltDeg}deg) scale(${flameScaleX}, ${flameScaleY})` : undefined,
+                transition: 'transform 0.08s ease-out',
+              }}
+            >
               <circle cx="0" cy="0" r="14" fill="url(#flameGlow)" opacity="0.6" />
               <path d="M 0 4 Q -6 -3, 0 -14 Q 6 -3, 0 4 Z" fill="url(#flameGlow)" />
               <path d="M 0 2 Q -3 -2, 0 -8 Q 3 -2, 0 2 Z" fill="#FFFFFF" />
@@ -1566,7 +1632,15 @@ function BirthdayCakeWithCandles({ lit }: { lit: boolean }) {
           <rect x="-4.5" y="10" width="9" height="42" rx="2" fill="url(#candleStick)" />
           <line x1="0" y1="10" x2="0" y2="3" stroke="#333" strokeWidth="1.5" strokeLinecap="round" />
           {lit ? (
-            <g className="animate-flame" style={{ animationDelay: '0.18s' }}>
+            <g
+              className="animate-flame"
+              style={{
+                animationDelay: '0.18s',
+                transformOrigin: '0px 3px',
+                transform: tiltDeg > 0 ? `rotate(${tiltDeg * 1.1}deg) scale(${flameScaleX}, ${flameScaleY})` : undefined,
+                transition: 'transform 0.08s ease-out',
+              }}
+            >
               <circle cx="0" cy="-2" r="16" fill="url(#flameGlow)" opacity="0.75" />
               <path d="M 0 3 Q -7 -5, 0 -17 Q 7 -5, 0 3 Z" fill="url(#flameGlow)" />
               <path d="M 0 1 Q -3.5 -3, 0 -10 Q 3.5 -3, 0 1 Z" fill="#FFFFFF" />
@@ -1583,7 +1657,15 @@ function BirthdayCakeWithCandles({ lit }: { lit: boolean }) {
           <rect x="-4" y="10" width="8" height="36" rx="2" fill="url(#candleStick)" />
           <line x1="0" y1="10" x2="0" y2="4" stroke="#333" strokeWidth="1.5" strokeLinecap="round" />
           {lit ? (
-            <g className="animate-flame" style={{ animationDelay: '0.35s' }}>
+            <g
+              className="animate-flame"
+              style={{
+                animationDelay: '0.35s',
+                transformOrigin: '0px 4px',
+                transform: tiltDeg > 0 ? `rotate(${tiltDeg * 0.9}deg) scale(${flameScaleX}, ${flameScaleY})` : undefined,
+                transition: 'transform 0.08s ease-out',
+              }}
+            >
               <circle cx="0" cy="0" r="14" fill="url(#flameGlow)" opacity="0.6" />
               <path d="M 0 4 Q -6 -3, 0 -14 Q 6 -3, 0 4 Z" fill="url(#flameGlow)" />
               <path d="M 0 2 Q -3 -2, 0 -8 Q 3 -2, 0 2 Z" fill="#FFFFFF" />
@@ -1683,6 +1765,10 @@ function Collection({ onLock }: { onLock?: () => void }) {
   const [candlesLit, setCandlesLit] = useState(true);
   const [micActive, setMicActive] = useState(false);
   const [celebrationMuted, setCelebrationMuted] = useState(false);
+  const [blowProgress, setBlowProgress] = useState(0);
+  const [isSimulatingBlow, setIsSimulatingBlow] = useState(false);
+  const holdBlowTimerRef = useRef<number | null>(null);
+
   const visibleMemories = useMemo(() => activeCategory === 'All memories' ? memories : memories.filter((memory) => memory.category === activeCategory), [activeCategory]);
 
   useEffect(() => {
@@ -1697,17 +1783,25 @@ function Collection({ onLock }: { onLock?: () => void }) {
   useEffect(() => {
     if (celebrationStep !== 'cake' || !candlesLit) {
       setMicActive(false);
+      setBlowProgress(0);
       return;
     }
 
     let cancel: (() => void) | null = null;
     let cancelled = false;
 
-    detectMicBlow(() => {
-      if (!cancelled) {
-        handleBlowCandles();
+    detectMicBlow(
+      () => {
+        if (!cancelled) {
+          handleBlowCandles();
+        }
+      },
+      (progress) => {
+        if (!cancelled) {
+          setBlowProgress(progress);
+        }
       }
-    }).then((cleanup) => {
+    ).then((cleanup) => {
       if (cancelled) {
         cleanup?.();
       } else if (cleanup) {
@@ -1720,6 +1814,7 @@ function Collection({ onLock }: { onLock?: () => void }) {
       cancelled = true;
       cancel?.();
       setMicActive(false);
+      setBlowProgress(0);
     };
   }, [celebrationStep, candlesLit]);
 
@@ -1727,13 +1822,9 @@ function Collection({ onLock }: { onLock?: () => void }) {
   useEffect(() => {
     if (celebrationStep === 'happy_birthday') {
       if (!celebrationMuted) {
-        playFireworkBlast(0.6);
-        playHappyBirthdaySong(0.45);
-        const timer = setTimeout(() => {
-          speakHappyBirthday('Manu');
-        }, 1100);
+        startCelebrationFireworksShow();
+        playHappyBirthdaySong(0.5);
         return () => {
-          clearTimeout(timer);
           stopCelebrationAudio();
         };
       }
@@ -1745,14 +1836,45 @@ function Collection({ onLock }: { onLock?: () => void }) {
     };
   }, [celebrationStep, celebrationMuted]);
 
+  const startHoldBlow = () => {
+    if (!candlesLit) return;
+    setIsSimulatingBlow(true);
+    let progress = 0;
+    const startTime = Date.now();
+    const interval = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      progress = Math.min(1, elapsed / 650);
+      setBlowProgress(progress);
+      if (progress >= 1) {
+        clearInterval(interval);
+        setIsSimulatingBlow(false);
+        handleBlowCandles();
+      }
+    }, 30);
+    holdBlowTimerRef.current = interval;
+  };
+
+  const cancelHoldBlow = () => {
+    if (holdBlowTimerRef.current) {
+      clearInterval(holdBlowTimerRef.current);
+      holdBlowTimerRef.current = null;
+    }
+    setIsSimulatingBlow(false);
+    if (candlesLit) {
+      setBlowProgress(0);
+    }
+  };
+
   const handleBlowCandles = () => {
     if (!candlesLit) return;
+    setBlowProgress(1);
     setCandlesLit(false);
     playCandleBlowSound();
 
     setTimeout(() => {
       setCelebrationStep('happy_birthday');
-    }, 850);
+      setBlowProgress(0);
+    }, 900);
   };
 
   function chooseCategory(category: string) {
@@ -2016,31 +2138,60 @@ function Collection({ onLock }: { onLock?: () => void }) {
 
             {/* 3D Birthday Cake with Lit Candles */}
             <div className="my-7">
-              <BirthdayCakeWithCandles lit={candlesLit} />
+              <BirthdayCakeWithCandles lit={candlesLit} blowIntensity={blowProgress} />
 
               {/* Breath / Mic Indicator */}
               {candlesLit && (
-                <div className="mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-[#FFE066] animate-pulse">
-                  <span>🌬️</span>
-                  <span>{micActive ? 'Blow into your mic now ("ufff!") or click below' : 'Blow into your mic ("ufff") or click below'}</span>
-                  <span>🕯️</span>
+                <div className="mt-5 flex flex-col items-center justify-center gap-2 max-w-md mx-auto px-4">
+                  <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-[#FFE066]">
+                    <span className="text-base sm:text-lg">🌬️</span>
+                    <span>
+                      {micActive
+                        ? 'Blow a long breath into your phone mic: Say "Ufffffff!"'
+                        : 'Take a deep breath and blow into your mic ("uffff") or hold the button below!'}
+                    </span>
+                    <span className="text-base sm:text-lg">🕯️</span>
+                  </div>
+
+                  {/* Breath Power Meter */}
+                  <div className="w-full max-w-xs mt-1.5 bg-black/60 border border-white/20 rounded-full h-4 p-0.5 overflow-hidden shadow-inner">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#00E5FF] via-[#FFD700] to-[#E50914] transition-all duration-150 ease-out"
+                      style={{ width: `${Math.round(blowProgress * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-semibold text-[#bcb3ba] tracking-wide">
+                    {blowProgress > 0
+                      ? `💨 Breath Power: ${Math.round(blowProgress * 100)}% — Keep blowing!`
+                      : 'Blow real breath stream ("uffff") directly onto phone mic'}
+                  </span>
                 </div>
               )}
             </div>
 
             {/* Blow Candles Button */}
-            <div className="mt-5 flex justify-center">
+            <div className="mt-5 flex flex-col items-center justify-center gap-3">
               <button
                 type="button"
                 data-testid="button-blow-candles"
                 onClick={handleBlowCandles}
+                onMouseDown={startHoldBlow}
+                onMouseUp={cancelHoldBlow}
+                onMouseLeave={cancelHoldBlow}
+                onTouchStart={startHoldBlow}
+                onTouchEnd={cancelHoldBlow}
                 disabled={!candlesLit}
-                className="inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-[#FFB703] via-[#F59E0B] to-[#D97706] px-9 py-4 font-bold text-black text-base shadow-[0_0_35px_rgba(245,158,11,0.6)] transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
+                className="group relative inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-[#FFB703] via-[#F59E0B] to-[#D97706] px-9 py-4 font-bold text-black text-base shadow-[0_0_35px_rgba(245,158,11,0.6)] transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 select-none"
               >
-                <span className="text-2xl">💨</span>
-                <span className="font-semibold tracking-wide">Blow the Candles!</span>
+                <span className="text-2xl transition-transform group-hover:scale-125">💨</span>
+                <span className="font-semibold tracking-wide">
+                  {isSimulatingBlow ? 'Blowing: "Ufffffff!" 🌬️' : 'Blow the Candles (Say Ufffff!)'}
+                </span>
                 <span className="text-xl">🕯️</span>
               </button>
+              <p className="text-xs text-white/50">
+                Blow into phone microphone or press & hold the button to blow!
+              </p>
             </div>
           </div>
         )}
