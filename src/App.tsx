@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, CalendarDays, ChevronDown, Clapperboard, Film, Heart, Languages, LockKeyhole, Maximize, Minimize, Pause, Play, RotateCcw, RotateCw, Smartphone, Sparkles, Volume2, VolumeX, X } from 'lucide-react';
+import { playCandleBlowSound, playFireworkBlast, playHappyBirthdaySong, speakHappyBirthday, stopCelebrationAudio, detectMicBlow } from './lib/celebration-audio';
 
 // EDIT THIS DATE to the birthday being celebrated. Date format: YYYY-MM-DD.
 export const EXPECTED_BIRTHDAY = '1999-11-15';
@@ -522,10 +523,27 @@ function NetflixFullscreenPlayer({
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLandscapeLocked, setIsLandscapeLocked] = useState(false);
-  const [forceLandscape, setForceLandscape] = useState(false);
+  const [forceLandscape, setForceLandscape] = useState(() => {
+    return typeof window !== 'undefined' && window.innerWidth < window.innerHeight;
+  });
   const hideTimeoutRef = useRef<number | null>(null);
 
-  // Request fullscreen, attempt orientation lock, and start playback on mount
+  // Auto-detect orientation on resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= window.innerHeight) {
+        setForceLandscape(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
+  // Request fullscreen, orientation lock, and start playback on mount
   useEffect(() => {
     const el = containerRef.current;
     const video = videoRef.current;
@@ -534,7 +552,6 @@ function NetflixFullscreenPlayer({
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.then(() => setIsPlaying(true)).catch(() => {
-          // Autoplay with sound prevented, play muted
           video.muted = true;
           setIsMuted(true);
           video.play().then(() => setIsPlaying(true)).catch(console.error);
@@ -551,12 +568,11 @@ function NetflixFullscreenPlayer({
       }
     }
 
-    // Lock orientation to landscape on mobile devices
     try {
       if (screen.orientation && (screen.orientation as any).lock) {
         (screen.orientation as any).lock('landscape')
           .then(() => setIsLandscapeLocked(true))
-          .catch((err: any) => console.log('Orientation lock prevented:', err));
+          .catch(() => { });
       }
     } catch { }
 
@@ -601,22 +617,45 @@ function NetflixFullscreenPlayer({
     };
   }, [onClose]);
 
-  const resetHideTimer = () => {
-    setShowControls(true);
+  const startHideTimer = () => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     hideTimeoutRef.current = window.setTimeout(() => {
       if (isPlaying) {
         setShowControls(false);
       }
-    }, 3500);
+    }, 2800);
   };
 
   useEffect(() => {
-    resetHideTimer();
+    if (isPlaying && showControls) {
+      startHideTimer();
+    }
     return () => {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
-  }, [isPlaying]);
+  }, [isPlaying, showControls]);
+
+  // Clicking anywhere on screen toggles controls visibility smoothly like Netflix
+  const handleScreenClick = () => {
+    setShowControls((prev) => {
+      const next = !prev;
+      if (next && isPlaying) {
+        startHideTimer();
+      } else if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+      return next;
+    });
+  };
+
+  const handleUserActivity = () => {
+    if (!showControls) {
+      setShowControls(true);
+    }
+    if (isPlaying) {
+      startHideTimer();
+    }
+  };
 
   const togglePlay = () => {
     if (videoRef.current) {
@@ -626,9 +665,9 @@ function NetflixFullscreenPlayer({
       } else {
         videoRef.current.pause();
         setIsPlaying(false);
+        setShowControls(true);
       }
     }
-    resetHideTimer();
   };
 
   const toggleMute = () => {
@@ -636,14 +675,12 @@ function NetflixFullscreenPlayer({
       videoRef.current.muted = !videoRef.current.muted;
       setIsMuted(videoRef.current.muted);
     }
-    resetHideTimer();
   };
 
   const seekRelative = (seconds: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + seconds));
     }
-    resetHideTimer();
   };
 
   const toggleFullscreen = () => {
@@ -659,7 +696,6 @@ function NetflixFullscreenPlayer({
         document.exitFullscreen().catch(() => { });
       }
     }
-    resetHideTimer();
   };
 
   const toggleOrientationManual = () => {
@@ -682,7 +718,6 @@ function NetflixFullscreenPlayer({
     } catch {
       setForceLandscape((prev) => !prev);
     }
-    resetHideTimer();
   };
 
   const handleTimeUpdate = () => {
@@ -698,7 +733,6 @@ function NetflixFullscreenPlayer({
       videoRef.current.currentTime = targetTime;
       setCurrentTime(targetTime);
     }
-    resetHideTimer();
   };
 
   const formatTime = (secs: number) => {
@@ -713,19 +747,21 @@ function NetflixFullscreenPlayer({
   return (
     <div
       ref={containerRef}
-      onMouseMove={resetHideTimer}
-      onTouchStart={resetHideTimer}
-      onClick={resetHideTimer}
+      onMouseMove={handleUserActivity}
+      onTouchStart={handleUserActivity}
+      onClick={handleScreenClick}
       style={{
         cursor: showControls ? 'default' : 'none',
         ...(forceLandscape ? {
           transform: 'rotate(90deg)',
-          transformOrigin: 'bottom left',
+          transformOrigin: 'top left',
           position: 'fixed',
-          top: '-100vw',
-          left: 0,
-          height: '100vw',
+          top: 0,
+          left: '100%',
           width: '100vh',
+          height: '100vw',
+          maxWidth: '100vh',
+          maxHeight: '100vw',
           zIndex: 9999,
         } : {})
       }}
@@ -738,7 +774,6 @@ function NetflixFullscreenPlayer({
         autoPlay
         playsInline
         preload="auto"
-        onMouseMove={resetHideTimer}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleTimeUpdate}
         onPlay={() => setIsPlaying(true)}
@@ -747,48 +782,42 @@ function NetflixFullscreenPlayer({
           setIsPlaying(false);
           setShowControls(true);
         }}
-        onClick={togglePlay}
-        className="absolute inset-0 h-full w-full object-contain cursor-pointer"
+        className="absolute inset-0 h-full w-full object-contain pointer-events-none"
       />
 
       {/* Top Header Bar */}
       <div
-        className={`relative z-20 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+        className={`relative z-20 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 ease-in-out ${
+          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
             className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
             title="Exit player (Esc)"
           >
             <ArrowLeft size={22} />
           </button>
-          <div>
-            <span className="font-mono-label text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#E50914] font-semibold">
-              {subtitle}
-            </span>
-            <h2 className="text-base sm:text-xl font-bold text-white drop-shadow">
-              {title}
-            </h2>
-          </div>
+          <span className="text-sm sm:text-base font-semibold text-white drop-shadow">
+            {title}
+          </span>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Mobile landscape rotate button */}
           <button
             type="button"
-            onClick={toggleOrientationManual}
-            className="flex items-center gap-1.5 rounded-[4px] border border-white/25 bg-black/50 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md transition hover:border-white hover:bg-black/80 active:scale-95 sm:hidden"
-            title="Rotate to Landscape"
+            onClick={(e) => { e.stopPropagation(); toggleOrientationManual(); }}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
+            title={forceLandscape ? 'Exit rotate' : 'Rotate to landscape'}
           >
-            <Smartphone size={16} className="rotate-90 text-[#E50914]" /> Rotate
+            <Smartphone size={20} className={forceLandscape ? 'text-[#E50914]' : ''} />
           </button>
 
           <button
             type="button"
-            onClick={toggleFullscreen}
+            onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
             title="Toggle Fullscreen"
           >
@@ -797,7 +826,7 @@ function NetflixFullscreenPlayer({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
             title="Close"
           >
@@ -806,15 +835,16 @@ function NetflixFullscreenPlayer({
         </div>
       </div>
 
-      {/* Big Center Quick Action (visible when paused or on tap) */}
+      {/* Big Center Quick Action (visible when controls shown) */}
       <div
-        className={`relative z-10 mx-auto flex items-center justify-center gap-8 sm:gap-14 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+        className={`relative z-10 mx-auto flex items-center justify-center gap-8 sm:gap-14 transition-opacity duration-300 ease-in-out ${
+          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
       >
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); seekRelative(-10); }}
-          className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:scale-110 hover:bg-black/80 active:scale-95"
+          className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:scale-110 hover:bg-black/80 active:scale-95 cursor-pointer"
           title="Rewind 10s"
         >
           <RotateCcw size={28} />
@@ -823,7 +853,7 @@ function NetflixFullscreenPlayer({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-          className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[#E50914] text-white shadow-2xl transition hover:scale-105 hover:bg-[#c11119] active:scale-95"
+          className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[#E50914] text-white shadow-2xl transition hover:scale-105 hover:bg-[#c11119] active:scale-95 cursor-pointer"
           title={isPlaying ? 'Pause' : 'Play'}
         >
           {isPlaying ? <Pause size={38} fill="white" /> : <Play size={38} fill="white" className="ml-1" />}
@@ -832,7 +862,7 @@ function NetflixFullscreenPlayer({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); seekRelative(10); }}
-          className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:scale-110 hover:bg-black/80 active:scale-95"
+          className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:scale-110 hover:bg-black/80 active:scale-95 cursor-pointer"
           title="Forward 10s"
         >
           <RotateCw size={28} />
@@ -841,8 +871,10 @@ function NetflixFullscreenPlayer({
 
       {/* Bottom Control Bar */}
       <div
-        className={`relative z-20 px-4 sm:px-8 pb-5 sm:pb-8 pt-6 bg-gradient-to-t from-black/95 via-black/50 to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+        onClick={(e) => e.stopPropagation()}
+        className={`relative z-20 px-4 sm:px-8 pb-5 sm:pb-8 pt-6 bg-gradient-to-t from-black/95 via-black/50 to-transparent transition-opacity duration-300 ease-in-out ${
+          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
       >
         {/* Scrubber Progress Bar */}
         <div className="relative mb-3 flex items-center gap-3">
@@ -880,7 +912,7 @@ function NetflixFullscreenPlayer({
             <button
               type="button"
               onClick={togglePlay}
-              className="text-white hover:text-[#E50914] transition"
+              className="text-white hover:text-[#E50914] transition cursor-pointer"
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
@@ -889,7 +921,7 @@ function NetflixFullscreenPlayer({
             <button
               type="button"
               onClick={() => seekRelative(-10)}
-              className="flex items-center gap-1 text-xs text-white/80 hover:text-white transition"
+              className="flex items-center gap-1 text-xs text-white/80 hover:text-white transition cursor-pointer"
               title="Rewind 10s"
             >
               <RotateCcw size={20} />
@@ -899,7 +931,7 @@ function NetflixFullscreenPlayer({
             <button
               type="button"
               onClick={() => seekRelative(10)}
-              className="flex items-center gap-1 text-xs text-white/80 hover:text-white transition"
+              className="flex items-center gap-1 text-xs text-white/80 hover:text-white transition cursor-pointer"
               title="Forward 10s"
             >
               <RotateCw size={20} />
@@ -909,7 +941,7 @@ function NetflixFullscreenPlayer({
             <button
               type="button"
               onClick={toggleMute}
-              className="text-white hover:text-white/80 transition"
+              className="text-white hover:text-white/80 transition cursor-pointer"
               title={isMuted ? 'Unmute' : 'Mute'}
             >
               {isMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
@@ -917,21 +949,19 @@ function NetflixFullscreenPlayer({
           </div>
 
           <div className="flex items-center gap-3 sm:gap-5">
-            {/* Mobile rotate button in bottom bar */}
             <button
               type="button"
               onClick={toggleOrientationManual}
-              className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition"
+              className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition cursor-pointer"
               title="Turn landscape"
             >
               <Smartphone size={18} className="rotate-90" />
-              <span className="hidden sm:inline text-xs">Landscape</span>
             </button>
 
             <button
               type="button"
               onClick={toggleFullscreen}
-              className="text-white hover:text-white/80 transition"
+              className="text-white hover:text-white/80 transition cursor-pointer"
               title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             >
               {isFullscreen ? <Minimize size={22} /> : <Maximize size={22} />}
@@ -943,7 +973,7 @@ function NetflixFullscreenPlayer({
   );
 }
 
-function LudoCelebrationFireworks() {
+function LudoCelebrationFireworks({ onExplode }: { onExplode?: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -1035,6 +1065,7 @@ function LudoCelebrationFireworks() {
     const confettis: Confetti[] = [];
 
     const explode = (x: number, y: number, primaryColor: string) => {
+      onExplode?.();
       shockwaves.push({
         x,
         y,
@@ -1650,6 +1681,8 @@ function Collection({ onLock }: { onLock?: () => void }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [celebrationStep, setCelebrationStep] = useState<'invite' | 'cake' | 'happy_birthday' | 'revealed'>('invite');
   const [candlesLit, setCandlesLit] = useState(true);
+  const [micActive, setMicActive] = useState(false);
+  const [celebrationMuted, setCelebrationMuted] = useState(false);
   const visibleMemories = useMemo(() => activeCategory === 'All memories' ? memories : memories.filter((memory) => memory.category === activeCategory), [activeCategory]);
 
   useEffect(() => {
@@ -1660,25 +1693,62 @@ function Collection({ onLock }: { onLock?: () => void }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleBlowCandles = () => {
-    setCandlesLit(false);
-    try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.35);
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.55);
-    } catch {
-      // AudioContext fallback
+  // 🎤 Listen for breath blow into mic ("ufff") when cake is shown
+  useEffect(() => {
+    if (celebrationStep !== 'cake' || !candlesLit) {
+      setMicActive(false);
+      return;
     }
+
+    let cancel: (() => void) | null = null;
+    let cancelled = false;
+
+    detectMicBlow(() => {
+      if (!cancelled) {
+        handleBlowCandles();
+      }
+    }).then((cleanup) => {
+      if (cancelled) {
+        cleanup?.();
+      } else if (cleanup) {
+        cancel = cleanup;
+        setMicActive(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      cancel?.();
+      setMicActive(false);
+    };
+  }, [celebrationStep, candlesLit]);
+
+  // 🎆 Blast music, firework explosions & Happy Birthday song during step 'happy_birthday'
+  useEffect(() => {
+    if (celebrationStep === 'happy_birthday') {
+      if (!celebrationMuted) {
+        playFireworkBlast(0.6);
+        playHappyBirthdaySong(0.45);
+        const timer = setTimeout(() => {
+          speakHappyBirthday('Manu');
+        }, 1100);
+        return () => {
+          clearTimeout(timer);
+          stopCelebrationAudio();
+        };
+      }
+    } else {
+      stopCelebrationAudio();
+    }
+    return () => {
+      stopCelebrationAudio();
+    };
+  }, [celebrationStep, celebrationMuted]);
+
+  const handleBlowCandles = () => {
+    if (!candlesLit) return;
+    setCandlesLit(false);
+    playCandleBlowSound();
 
     setTimeout(() => {
       setCelebrationStep('happy_birthday');
@@ -1947,6 +2017,15 @@ function Collection({ onLock }: { onLock?: () => void }) {
             {/* 3D Birthday Cake with Lit Candles */}
             <div className="my-7">
               <BirthdayCakeWithCandles lit={candlesLit} />
+
+              {/* Breath / Mic Indicator */}
+              {candlesLit && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-[#FFE066] animate-pulse">
+                  <span>🌬️</span>
+                  <span>{micActive ? 'Blow into your mic now ("ufff!") or click below' : 'Blow into your mic ("ufff") or click below'}</span>
+                  <span>🕯️</span>
+                </div>
+              )}
             </div>
 
             {/* Blow Candles Button */}
@@ -1989,6 +2068,22 @@ function Collection({ onLock }: { onLock?: () => void }) {
               >
                 <span>A Birthday Message for You</span>
                 <span>💌</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCelebrationMuted((prev) => {
+                    const next = !prev;
+                    if (next) stopCelebrationAudio();
+                    return next;
+                  });
+                }}
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-5 py-3.5 text-sm font-semibold text-white/90 backdrop-blur-md transition hover:border-white hover:text-white active:scale-95 cursor-pointer"
+                title={celebrationMuted ? 'Turn Sound On' : 'Mute Sound'}
+              >
+                {celebrationMuted ? <VolumeX size={17} /> : <Volume2 size={17} className="text-[#FFD700] animate-pulse" />}
+                <span>{celebrationMuted ? 'Unmute Sound' : 'Mute Music'}</span>
               </button>
             </div>
           </div>
@@ -2100,17 +2195,7 @@ function Collection({ onLock }: { onLock?: () => void }) {
 
       <footer className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-4 px-5 py-8 text-center sm:flex-row sm:px-9 sm:text-left lg:px-14">
         <a href="#top" className="font-editorial text-xl tracking-[-.05em] text-[#eee7e0]">Manu<span className="italic text-[#E50914]">flix</span></a>
-        <p className="text-[11px] text-[#827984]">Happy Birthday</p>
         <div className="flex items-center gap-5">
-          {onLock && (
-            <button
-              onClick={onLock}
-              className="font-mono-label text-[9px] uppercase tracking-[.14em] text-[#696168] transition hover:text-[#E50914]"
-              title="Lock and ask for birthday again"
-            >
-              Reset Birthday Gate
-            </button>
-          )}
           <a href="#top" className="inline-flex items-center gap-2 font-mono-label text-[9px] uppercase tracking-[.14em] text-[#aaa0a8] transition hover:text-[#E50914]">Back to the beginning <ArrowDown size={12} className="rotate-180" /></a>
         </div>
       </footer>
