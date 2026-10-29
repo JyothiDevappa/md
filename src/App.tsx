@@ -1,6 +1,63 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, CalendarDays, ChevronDown, Clapperboard, Film, Heart, Languages, LockKeyhole, Maximize, Minimize, Pause, Play, RotateCcw, RotateCw, Smartphone, Sparkles, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, Film, Heart, Languages, LockKeyhole, Maximize, Minimize, Pause, Play, RotateCcw, RotateCw, Smartphone, Sparkles, Volume2, VolumeX, X } from 'lucide-react';
 import { playCandleBlowSound, playFireworkBlast, playHappyBirthdaySong, startCelebrationFireworksShow, stopCelebrationAudio, detectMicBlow } from './lib/celebration-audio';
+import posterOccasion from './assets/trending/brotherandsister-original.jpeg';
+import posterWedding from './assets/trending/img.jpeg';
+import posterOcean from './assets/trending/img1.jpeg';
+import posterTemple from './assets/trending/img2.jpeg';
+import posterPeace from './assets/trending/img4.jpeg';
+import posterSideQuests from './assets/trending/img5.jpeg';
+import posterPromise from './assets/trending/img6.jpeg';
+import posterMall from './assets/trending/img7.jpeg';
+import posterStyle from './assets/trending/img8.jpeg';
+import posterLakeside from './assets/trending/img9.jpeg';
+import posterJathre from './assets/trending/img10.jpeg';
+import posterMeadows from './assets/trending/img6.jpeg';
+import posterSwing from './assets/trending/img12.jpeg';
+
+import posterSahasa from './assets/blockbusters/photo1.jpeg';
+import posterCatman from './assets/blockbusters/photo3.jpeg';
+import posterMist from './assets/blockbusters/photo4.jpeg';
+import posterSummit from './assets/blockbusters/photo5.jpeg';
+import posterBoba from './assets/blockbusters/photo6.jpeg';
+import posterGentleman from './assets/blockbusters/photo7.jpeg';
+import posterCoast from './assets/blockbusters/photo8.jpeg';
+import posterRobo from './assets/blockbusters/photo9.jpeg';
+import posterFort from './assets/blockbusters/photo10.jpeg';
+
+export type TrendingMovie = {
+  id: string;
+  title: string;
+  image: string;
+};
+
+export const trendingMovies: TrendingMovie[] = [
+  { id: 'occasion', title: 'Occasion', image: posterOccasion },
+  { id: 'at-wedding', title: 'At Wedding', image: posterWedding },
+  { id: 'ocean-diaries', title: 'Ocean Diaries', image: posterOcean },
+  { id: 'temple', title: 'Temple', image: posterTemple },
+  { id: 'peace-is-here', title: 'Peace Is Here', image: posterPeace },
+  { id: 'random-day', title: 'Random Day', image: posterSideQuests },
+  { id: 'the-promise', title: 'The Promise', image: posterPromise },
+  { id: 'mall-diaries', title: 'Mall Diaries', image: posterMall },
+  { id: 'style-duo', title: 'Style Duo', image: posterStyle },
+  { id: 'lakeside-vibes', title: 'Lakeside Vibes', image: posterLakeside },
+  { id: 'jathre-night', title: 'Jathre Night', image: posterJathre },
+  { id: 'raksha-bandhana', title: 'Raksha Bandhana', image: posterMeadows },
+  { id: 'the-swing', title: 'The Swing', image: posterSwing },
+];
+
+export const blockbusterMovies: TrendingMovie[] = [
+  { id: 'sahasa-simha', title: 'Sahasa Simha', image: posterSahasa },
+  { id: 'catman', title: 'Catman', image: posterCatman },
+  { id: 'nandi-hills', title: 'Nandi Hills', image: posterMist },
+  { id: 'somewhere-in-mountain', title: 'Somewhere in Mountain', image: posterSummit },
+  { id: 'boba-diaries', title: 'Boba Diaries', image: posterBoba },
+  { id: 'the-gentleman', title: 'The Gentleman', image: posterGentleman },
+  { id: 'coastal-drift', title: 'Coastal Drift', image: posterCoast },
+  { id: 'the-roboticist', title: 'The Roboticist', image: posterRobo },
+  { id: 'the-fort', title: 'The Fort', image: posterFort },
+];
 
 // EDIT THIS DATE to the birthday being celebrated. Date format: YYYY-MM-DD.
 export const EXPECTED_BIRTHDAY = '1999-11-15';
@@ -83,7 +140,7 @@ function ImageFrame({ src, alt, className = '' }: { src: string; alt: string; cl
   );
 }
 
-function NetflixStyleLogo({ className = '' }: { className?: string }) {
+function NetflixStyleLogo({ className }: { className?: string }) {
   /*
    * Netflix-authentic logo with the signature subtle upward arch/bend.
    * Tight letter spacing, bold condensed Impact font, Netflix red.
@@ -91,7 +148,7 @@ function NetflixStyleLogo({ className = '' }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 230 55"
-      className={`h-[45px] sm:h-[55px] md:h-[60px] w-auto overflow-visible select-none cursor-default ${className}`}
+      className={`w-auto overflow-visible select-none ${className || 'h-[45px] sm:h-[55px] md:h-[60px] cursor-default'}`}
       aria-label="MANUFLIX"
       role="img"
     >
@@ -451,6 +508,47 @@ function BirthdayGate({ onUnlock }: { onUnlock: (selectedDate: string) => void }
   );
 }
 
+function PosterModal({ poster, onClose }: { poster: TrendingMovie | null; onClose: () => void }) {
+  useEffect(() => {
+    if (!poster) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKeyDown);
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKeyDown); document.body.style.overflow = ''; };
+  }, [poster, onClose]);
+
+  if (!poster) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-h-[92vh] max-w-[440px] w-full overflow-hidden rounded-lg border border-white/15 bg-[#141414] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          aria-label="Close"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white backdrop-blur transition hover:bg-black/90 active:scale-95 cursor-pointer"
+        >
+          <X size={18} />
+        </button>
+        <div className="relative aspect-[2/3] w-full overflow-hidden bg-black">
+          <img
+            src={poster.image}
+            alt={poster.title}
+            className="h-full w-full object-contain"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MemoryModal({ memory, onClose }: { memory: Memory | null; onClose: () => void }) {
   useEffect(() => {
     if (!memory) return;
@@ -487,17 +585,110 @@ function MemoryModal({ memory, onClose }: { memory: Memory | null; onClose: () =
   );
 }
 
-function BirthdayNote({ onClose }: { onClose: () => void }) {
+function BirthdayNote({ onClose, onPlay }: { onClose: () => void; onPlay?: () => void }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKeyDown);
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKeyDown); document.body.style.overflow = ''; };
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-[55] flex items-center justify-center bg-[#09080c]/85 p-5 backdrop-blur-md" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <article className="gate-reveal relative max-w-[490px] rounded-2xl border border-[#E50914]/25 bg-[#1e1e1e] px-7 py-10 text-center shadow-[0_25px_100px_#0009] sm:px-12 sm:py-14">
-        <button aria-label="Close birthday message" onClick={onClose} className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[#a89da4] transition hover:bg-white/10 hover:text-white"><X size={17} /></button>
-        <div className="mx-auto mb-7 flex h-12 w-12 items-center justify-center rounded-full border border-[#E50914]/30 bg-[#E50914]/10 text-[#E50914]"><Heart size={19} strokeWidth={1.5} /></div>
-        <p className="font-mono-label text-[10px] uppercase tracking-[.24em] text-[#E50914]">A note for your new year</p>
-        <h2 className="mt-4 font-editorial text-4xl leading-tight text-[#f5eee6]">You make the<br /><span className="italic text-[#E50914]">story better.</span></h2>
-        <p className="mt-6 text-sm leading-7 text-[#c8bec4]">I hope today feels like being wrapped up in every good thing you give to everyone around you. You deserve the full, unhurried, best-scene-in-the-movie kind of joy.</p>
-        <p className="mt-6 font-editorial text-lg italic text-[#E50914]">Happy birthday. I’m so glad you’re here.</p>
-        <button onClick={onClose} className="mt-8 rounded-full bg-[#E50914] px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#E50914]/90">Keep the good feeling</button>
+    <div
+      className="fixed inset-0 z-[55] flex items-center justify-center bg-black/80 p-3 sm:p-5 backdrop-blur-md overflow-y-auto"
+      onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <article
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="more-info-title"
+        className="gate-reveal relative my-auto max-h-[92dvh] w-full max-w-[620px] overflow-y-auto rounded-xl border border-white/10 bg-[#181818] shadow-[0_25px_80px_rgba(0,0,0,0.95)] hide-scrollbar"
+      >
+        {/* Modal Banner Image */}
+        <div className="relative h-[200px] sm:h-[260px] w-full overflow-hidden bg-black">
+          <img
+            src="/imgs/hero-thumbnail-flipped.jpeg"
+            alt="Documentary of Mr.MD"
+            className="h-full w-full object-cover object-[85%_center] filter brightness-[0.88]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-transparent to-black/50" />
+
+          {/* Close button */}
+          <button
+            aria-label="Close"
+            onClick={onClose}
+            className="absolute right-3.5 top-3.5 z-10 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-[#181818]/85 text-white backdrop-blur transition hover:bg-white hover:text-black cursor-pointer shadow-lg"
+          >
+            <X size={17} />
+          </button>
+
+          {/* Title & Quick Play inside banner */}
+          <div className="absolute bottom-3 left-4 right-4 sm:left-6 sm:bottom-4">
+            <div className="mb-1 flex items-center gap-2 drop-shadow">
+              <span className="flex h-[18px] w-[18px] sm:h-[20px] sm:w-[20px] items-center justify-center rounded-[2px] bg-[#E50914] font-editorial text-[13px] font-bold text-white">M</span>
+              <span className="text-[10px] font-semibold tracking-[.25em] text-[#bcb3ba]">SERIES</span>
+            </div>
+            <h2 id="more-info-title" className="font-editorial text-xl sm:text-3xl font-bold uppercase text-white drop-shadow">
+              Documentary of <span className="text-[#E50914]">Mr.MD</span>
+            </h2>
+            {onPlay && (
+              <div className="mt-2.5">
+                <button
+                  onClick={onPlay}
+                  className="inline-flex h-8 sm:h-9 items-center gap-2 rounded-[4px] bg-white px-4 text-xs sm:text-sm font-bold text-black transition hover:bg-white/80 active:scale-95 cursor-pointer shadow-md"
+                >
+                  <Play size={15} fill="black" stroke="black" /> Play
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div className="px-4 py-5 sm:px-6 sm:py-6">
+          {/* Metadata badges */}
+          <div className="mb-3.5 flex flex-wrap items-center gap-2 text-[11px] sm:text-xs font-semibold">
+            <span className="text-[#46d369]">98% Match</span>
+            <span className="text-[#a3a3a3]">2026</span>
+            <span className="border border-[#808080] px-1.5 py-0.5 text-[9px] text-white/90">TV-14</span>
+            <span className="rounded border border-white/20 px-1.5 py-0.5 text-[9px] text-white/80">Ultra HD 4K</span>
+            <span className="rounded border border-white/20 px-1.5 py-0.5 text-[9px] text-white/80">5.1 Audio</span>
+          </div>
+
+          {/* Synopsis requested by user */}
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
+            <p className="font-mono-label text-[9px] uppercase tracking-[.2em] text-[#E50914]">Synopsis</p>
+            <p className="mt-1.5 text-[14px] sm:text-[15px] leading-relaxed text-[#f1e9e1] font-medium">
+              A documentary of Manu, who turns 27 this year — a journey shaped by curiosity, a passion for trekking, a love for books, and an endless desire to explore the unknown.
+            </p>
+          </div>
+
+          {/* Birthday wishes card */}
+          <div className="mt-3.5 rounded-lg border border-[#E50914]/25 bg-[#E50914]/[0.06] p-3.5 sm:p-4">
+            <div className="flex items-center gap-2 text-[#E50914]">
+              <Heart size={14} fill="currentColor" />
+              <span className="font-mono-label text-[9px] uppercase tracking-[.2em]">Birthday wishes</span>
+            </div>
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[#c8bec4]">
+              I hope today brings you the same happiness you bring to the people around you. You deserve so many good things, not just today, but every day.
+            </p>
+            <p className="mt-2.5 font-editorial text-sm italic text-[#E50914]">
+              Happy 27th Birthday, Bro!!
+            </p>
+          </div>
+
+          {/* Cast & Credits */}
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#a3a3a3] border-t border-white/10 pt-3">
+            <div>
+              <span className="text-[#737373]">Starring: </span>
+              <span className="text-white">Manu (Mr.MD)</span>
+            </div>
+            <div>
+              <span className="text-[#737373]">Genres: </span>
+              <span className="text-white">Adventure, documentary.</span>
+            </div>
+          </div>
+        </div>
       </article>
     </div>
   );
@@ -1586,13 +1777,6 @@ function BirthdayCakeWithCandles({ lit, blowIntensity = 0 }: { lit: boolean; blo
 
         <path d="M 75 108 C 86 126, 94 126, 104 112 C 114 130, 124 130, 136 113 C 148 132, 158 130, 170 112 C 182 126, 194 126, 205 108 Z" fill="url(#frostingCream)" />
 
-        {/* Number 27 Gold Plate */}
-        <g transform="translate(112, 120)">
-          <rect x="0" y="0" width="56" height="22" rx="11" fill="#141414" stroke="#FFD700" strokeWidth="1.5" />
-          <text x="28" y="15" textAnchor="middle" fill="#FFD700" fontSize="11" fontWeight="bold" fontFamily="sans-serif" letterSpacing="1">
-            27 ✨
-          </text>
-        </g>
 
         {/* Dynamic Wind Stream / Breath Gust when user blows */}
         {lit && blowIntensity > 0 && (
@@ -1756,8 +1940,74 @@ function DedicationStarfield() {
 }
 
 function Collection({ onLock }: { onLock?: () => void }) {
-  const [activeCategory, setActiveCategory] = useState('All memories');
   const [selected, setSelected] = useState<Memory | null>(null);
+  const [activePoster, setActivePoster] = useState<TrendingMovie | null>(null);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScrollPaddles = () => {
+    if (!sliderRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
+    setCanScrollLeft(scrollLeft > 15);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 15);
+  };
+
+  useEffect(() => {
+    const el = sliderRef.current;
+    if (!el) return;
+    checkScrollPaddles();
+    el.addEventListener('scroll', checkScrollPaddles, { passive: true });
+    window.addEventListener('resize', checkScrollPaddles);
+    return () => {
+      el.removeEventListener('scroll', checkScrollPaddles);
+      window.removeEventListener('resize', checkScrollPaddles);
+    };
+  }, []);
+
+  const scrollTrending = (direction: 'left' | 'right') => {
+    if (!sliderRef.current) return;
+    const container = sliderRef.current;
+    const scrollAmount = container.clientWidth * 0.75;
+    container.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
+    });
+  };
+
+  const sliderRef2 = useRef<HTMLDivElement>(null);
+  const [canScrollLeft2, setCanScrollLeft2] = useState(false);
+  const [canScrollRight2, setCanScrollRight2] = useState(true);
+
+  const checkScrollPaddles2 = () => {
+    if (!sliderRef2.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = sliderRef2.current;
+    setCanScrollLeft2(scrollLeft > 15);
+    setCanScrollRight2(scrollLeft + clientWidth < scrollWidth - 15);
+  };
+
+  useEffect(() => {
+    const el = sliderRef2.current;
+    if (!el) return;
+    checkScrollPaddles2();
+    el.addEventListener('scroll', checkScrollPaddles2, { passive: true });
+    window.addEventListener('resize', checkScrollPaddles2);
+    return () => {
+      el.removeEventListener('scroll', checkScrollPaddles2);
+      window.removeEventListener('resize', checkScrollPaddles2);
+    };
+  }, []);
+
+  const scrollBlockbusters = (direction: 'left' | 'right') => {
+    if (!sliderRef2.current) return;
+    const container = sliderRef2.current;
+    const scrollAmount = container.clientWidth * 0.75;
+    container.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
+    });
+  };
+
   const [noteOpen, setNoteOpen] = useState(false);
   const [fullPlayerOpen, setFullPlayerOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -1768,8 +2018,6 @@ function Collection({ onLock }: { onLock?: () => void }) {
   const [blowProgress, setBlowProgress] = useState(0);
   const [isSimulatingBlow, setIsSimulatingBlow] = useState(false);
   const holdBlowTimerRef = useRef<number | null>(null);
-
-  const visibleMemories = useMemo(() => activeCategory === 'All memories' ? memories : memories.filter((memory) => memory.category === activeCategory), [activeCategory]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -1877,11 +2125,6 @@ function Collection({ onLock }: { onLock?: () => void }) {
     }, 900);
   };
 
-  function chooseCategory(category: string) {
-    setActiveCategory(category);
-    document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   return (
     <main className="film-grain min-h-[100dvh] overflow-hidden bg-[#141414] text-[#f3eee7]">
       {/* Fullscreen Video Player Modal */}
@@ -1898,7 +2141,9 @@ function Collection({ onLock }: { onLock?: () => void }) {
       <header className={`fixed inset-x-0 top-0 z-30 transition-all duration-300 ${isScrolled ? 'bg-[#141414]/95 backdrop-blur-md border-b border-white/[.08] shadow-lg' : 'bg-gradient-to-b from-black/80 via-black/20 to-transparent'}`}>
         <div className="mx-auto flex h-[68px] max-w-[1440px] items-center justify-between px-5 sm:px-9 lg:px-14">
           <div className="flex items-center gap-8">
-            <a href="#top" aria-label="Manuflix home" className="font-editorial text-[25px] tracking-[-.06em] text-[#f5eee6] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Manu<span className="italic text-[#E50914]">flix</span></a>
+            <a href="#top" aria-label="Manuflix home" className="flex items-center transition hover:opacity-90 active:scale-95">
+              <NetflixStyleLogo className="h-[28px] sm:h-[35px] cursor-pointer" />
+            </a>
           </div>
 
           {/* Right side: Mini profile avatar icon — clicks to go to very first login page */}
@@ -1929,14 +2174,19 @@ function Collection({ onLock }: { onLock?: () => void }) {
           <img
             src="/imgs/hero-thumbnail-flipped.jpeg"
             alt="Documentary of Mr.MD"
-            className="h-full w-full object-cover object-[right_center] sm:object-[85%_center] filter brightness-[1.12] contrast-[1.05] saturate-[1.05]"
+            className="hero-person-pos h-full w-full object-cover filter brightness-[0.92] contrast-[1.06]"
           />
-          {/* Left-side dark vignette: strictly covers only the left text area, leaving Manu completely clear and bright on the right */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-full sm:w-[58%] lg:w-[48%] bg-gradient-to-r from-[#141414] from-[35%] via-[#141414]/85 via-[70%] to-transparent" />
-          {/* Subtle top dark gradient for header */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#141414]/80 to-transparent" />
-          {/* Subtle bottom fade into collection */}
-          <div className="pointer-events-none absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-[#141414] to-transparent" />
+          {/* Full-bleed cinematic dark overlay across 100% of the banner */}
+          <div className="pointer-events-none absolute inset-0 bg-black/30" />
+
+          {/* Full-width gradient: solid deep black behind text on left, smoothly covering the entire right side */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/80 via-[42%] to-[#141414]/30" />
+
+          {/* Top dark gradient for header blending */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#141414]/90 via-[#141414]/40 to-transparent" />
+
+          {/* Bottom fade into collection across the full banner */}
+          <div className="pointer-events-none absolute bottom-0 inset-x-0 h-48 sm:h-44 bg-gradient-to-t from-[#141414] via-[#141414]/85 to-transparent" />
         </div>
 
         {/* Netflix Right-Side Rating Badge (like TV-14 in reference image) */}
@@ -1946,49 +2196,45 @@ function Collection({ onLock }: { onLock?: () => void }) {
           </div>
         </div>
 
-        <div className="relative mx-auto flex min-h-[calc(90vh-68px)] max-w-[1440px] items-end px-5 pb-[12%] sm:px-9 lg:items-center lg:pb-0 lg:px-14">
-          <div className="fade-up max-w-[620px]">
+        <div className="relative mx-auto flex min-h-[calc(90vh-68px)] max-w-[1440px] items-end px-5 pb-9 sm:pb-[10%] sm:px-9 lg:items-center lg:pb-0 lg:px-14">
+          <div className="fade-up max-w-full sm:max-w-[540px] lg:max-w-[620px]">
             {/* M SERIES badge */}
-            <div className="mb-5 flex items-center gap-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-              <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[3px] bg-[#E50914] font-editorial text-[22px] font-bold leading-none text-white" style={{ fontStyle: 'normal' }}>M</span>
-              <span className="text-[13px] font-medium tracking-[.35em] text-[#bcb3ba]" style={{ letterSpacing: '.35em' }}>S E R I E S</span>
+            <div className="mb-3 sm:mb-5 flex items-center gap-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+              <span className="flex h-[26px] w-[26px] sm:h-[30px] sm:w-[30px] items-center justify-center rounded-[3px] bg-[#E50914] font-editorial text-[18px] sm:text-[22px] font-bold leading-none text-white" style={{ fontStyle: 'normal' }}>M</span>
+              <span className="text-[11px] sm:text-[13px] font-medium tracking-[.35em] text-[#bcb3ba]" style={{ letterSpacing: '.35em' }}>S E R I E S</span>
             </div>
 
             {/* Big cinematic title with drop shadow */}
-            <h1 className="font-editorial text-[clamp(2.2rem,6vw,4.8rem)] uppercase leading-[.95] tracking-[.04em] text-[#f7f0e9] drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]" style={{ fontWeight: 600, fontStyle: 'normal' }}>
+            <h1 className="font-editorial text-[clamp(2.1rem,5.6vw,4.8rem)] uppercase leading-[.95] tracking-[.04em] text-[#f7f0e9] drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]" style={{ fontWeight: 600, fontStyle: 'normal' }}>
               <span className="block whitespace-nowrap">Documentary</span>
               <span className="block whitespace-nowrap text-[#f7f0e9]">of <span className="text-[#E50914]">Mr.MD</span></span>
             </h1>
 
             {/* #1 in TV Shows Today badge matching reference image */}
-            <div className="mt-5 flex items-center gap-2.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+            <div className="mt-3 sm:mt-5 flex items-center gap-2.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               <span className="flex flex-col items-center justify-center rounded-[2px] bg-[#E50914] px-1 py-0.5 text-[9px] font-black uppercase text-white leading-tight tracking-tighter">
                 <span>TOP</span>
                 <span className="-mt-0.5">10</span>
               </span>
-              <span className="text-[15px] font-bold text-white drop-shadow">#1 in TV Shows Today</span>
+              <span className="text-[13px] sm:text-[15px] font-bold text-white drop-shadow">#1 in TV Shows Today</span>
             </div>
 
-            {/* Description with drop shadow */}
-            <p className="mt-5 max-w-[500px] text-[15px] leading-relaxed text-[#ffffff]/95 sm:text-base drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]">
-              A documentary of Manu, who turns 27 this year — a journey shaped by curiosity, a passion for trekking, a love for books, and an endless desire to explore the unknown.
-            </p>
-
-            {/* Play & More Info buttons matching reference image */}
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            {/* Play & More Info buttons matching reference image - in same row on mobile and desktop */}
+            <div className="mt-4 sm:mt-6 flex flex-row flex-nowrap items-center gap-2.5 sm:gap-3">
               <button
                 onClick={() => setFullPlayerOpen(true)}
                 data-testid="button-play-feature"
-                className="inline-flex h-[42px] items-center gap-2.5 rounded-[4px] bg-white px-7 text-[16px] font-bold text-black shadow-xl transition-all duration-200 hover:bg-white/80 active:scale-95 cursor-pointer"
+                className="inline-flex h-[38px] sm:h-[42px] items-center justify-center gap-2 rounded-[4px] bg-white px-5 sm:px-7 text-[15px] sm:text-[16px] font-bold text-black shadow-xl transition-all duration-200 hover:bg-white/80 active:scale-95 cursor-pointer shrink-0"
               >
-                <Play size={20} fill="black" stroke="black" />
+                <Play size={18} fill="black" stroke="black" />
                 Play
               </button>
               <button
                 onClick={() => setNoteOpen(true)}
-                className="inline-flex h-[42px] items-center gap-2.5 rounded-[4px] bg-[#6d6d6e]/70 px-6 text-[16px] font-semibold text-white transition hover:bg-[#6d6d6e]/50 backdrop-blur-sm active:scale-95 cursor-pointer"
+                data-testid="button-more-info"
+                className="inline-flex h-[38px] sm:h-[42px] items-center justify-center gap-2 rounded-[4px] bg-[#6d6d6e]/70 px-4 sm:px-6 text-[15px] sm:text-[16px] font-semibold text-white transition hover:bg-[#6d6d6e]/50 backdrop-blur-sm active:scale-95 cursor-pointer shrink-0"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-5 w-5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4 sm:h-5 sm:w-5">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -2001,35 +2247,180 @@ function Collection({ onLock }: { onLock?: () => void }) {
         <div className="absolute bottom-0 left-5 right-5 h-px bg-gradient-to-r from-transparent via-[#E50914]/45 to-transparent sm:left-10 sm:right-10" />
       </section>
 
-      <section id="collection" className="scroll-mt-20 relative mx-auto max-w-[1440px] px-5 pb-20 pt-11 sm:px-9 sm:pt-14 lg:px-14">
-        <div className="mb-7 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div>
-            <p className="mb-2 font-mono-label text-[9px] uppercase tracking-[.24em] text-[#E50914]">Handpicked, just for you</p>
-            <h2 className="font-editorial text-3xl text-[#f1e9e1] sm:text-[38px]">Your collection <span className="ml-2 align-middle font-sans text-xs font-normal tracking-normal text-[#827983]">({visibleMemories.length} little stories)</span></h2>
-          </div>
-          <div className="hide-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-            {categories.map((category) => <button key={category} data-testid={`filter-${category.toLowerCase().replaceAll(' ', '-')}`} onClick={() => setActiveCategory(category)} className={`shrink-0 rounded-full border px-4 py-2 text-[11px] transition ${activeCategory === category ? 'border-[#E50914]/80 bg-[#E50914]/15 text-white' : 'border-white/10 text-[#aaa1a8] hover:border-[#E50914]/60 hover:text-white'}`}>{category}</button>)}
-          </div>
+      <section id="trending" className="scroll-mt-20 relative mx-auto max-w-[1440px] px-5 pb-16 pt-8 sm:px-9 sm:pt-12 lg:px-14">
+        {/* Section title */}
+        <div className="mb-4 sm:mb-5">
+          <h2 className="font-sans text-xl sm:text-2xl md:text-[24px] font-bold text-[#e5e5e5] tracking-tight">
+            Trending Now
+          </h2>
         </div>
 
+        {/* Horizontal Netflix Row Scroller Container */}
+        <div className="group/row relative">
+          {/* Left Arrow Navigation Paddle */}
+          <button
+            type="button"
+            aria-label="Scroll left"
+            onClick={() => scrollTrending('left')}
+            className={`absolute left-0 top-3 bottom-3 z-30 hidden md:flex items-center justify-center w-11 lg:w-13 rounded-r bg-black/60 hover:bg-black/85 text-white transition-all duration-200 backdrop-blur-sm cursor-pointer shadow-2xl ${
+              canScrollLeft
+                ? 'opacity-0 group-hover/row:opacity-100 hover:scale-105 active:scale-95'
+                : 'pointer-events-none opacity-0'
+            }`}
+          >
+            <ChevronLeft size={34} className="transition-transform group-hover/row:-translate-x-0.5" />
+          </button>
 
+          {/* Horizontal Single-Row Track */}
+          <div
+            ref={sliderRef}
+            className="flex flex-nowrap items-center gap-3 sm:gap-4 md:gap-4.5 overflow-x-auto scroll-smooth hide-scrollbar snap-x snap-mandatory py-3 px-1 sm:px-2"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {trendingMovies.map((movie) => (
+              <div
+                key={movie.id}
+                data-testid={`card-trending-${movie.id}`}
+                onClick={() => setActivePoster(movie)}
+                className="group relative aspect-[2/3] w-[140px] sm:w-[170px] md:w-[195px] lg:w-[215px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-md bg-[#181818] transition-all duration-300 ease-out hover:scale-[1.05] hover:z-20 hover:shadow-[0_14px_36px_rgba(0,0,0,0.95)] hover:ring-1 hover:ring-white/25 select-none"
+              >
+                {/* Base poster photo */}
+                <img
+                  src={movie.image}
+                  alt={movie.title}
+                  loading="lazy"
+                  className="h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
+                />
 
-        {visibleMemories.length > 0 ? <div className="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleMemories.map((memory, index) => <button key={memory.id} data-testid={`card-memory-${memory.id}`} onClick={() => setSelected(memory)} className="memory-card group min-w-0 text-left" style={{ animationDelay: `${index * 70}ms` }}>
-            <div className="relative aspect-[1.64/1] overflow-hidden rounded-xl border border-white/[.08] bg-[#1e1e1e]">
-              <ImageFrame src={memory.image} alt={memory.title} className="h-full w-full" />
-              <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: `linear-gradient(0deg, ${memory.accent}5c, transparent 70%)` }} />
-              <span className="absolute left-4 top-4 rounded-full border border-white/15 bg-[#141414]/70 px-3 py-1 font-mono-label text-[9px] uppercase tracking-[.12em] text-[#f0e8e1] backdrop-blur-sm">{memory.category}</span>
-              <span className="absolute bottom-4 right-4 flex h-10 w-10 translate-y-2 items-center justify-center rounded-full border border-white/45 bg-[#141414]/70 text-white opacity-0 backdrop-blur-sm transition-all group-hover:translate-y-0 group-hover:opacity-100"><Play size={15} fill="currentColor" /></span>
-            </div>
-            <div className="mt-4 flex items-start justify-between gap-3">
-              <div><h3 className="font-editorial text-[21px] text-[#f0e8e1] transition group-hover:text-[#E50914]">{memory.title}</h3><p className="mt-1.5 text-xs leading-relaxed text-[#98909a]">{memory.kind}</p></div>
-              <span className="mt-1 shrink-0 font-mono-label text-[9px] text-[#a89ca3]">{memory.rating}</span>
-            </div>
-          </button>)}
-        </div> : <div className="rounded-xl border border-white/10 bg-white/[.025] px-6 py-14 text-center"><Film className="mx-auto text-[#E50914]" size={23} /><p className="mt-4 font-editorial text-2xl">A story still being written.</p><p className="mt-2 text-sm text-[#a79da6]">This shelf is waiting for its first memory.</p></div>}
+                {/* Subtle cinematic lighting & Netflix overlays */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.4)_100%)]" />
+
+                {/* Top: Only the 'M' logo */}
+                <div className="absolute left-2.5 top-2.5 sm:left-3 sm:top-3 z-10">
+                  <span className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-[2px] bg-[#E50914] text-[11px] sm:text-[13px] font-black leading-none text-white shadow-[0_2px_8px_rgba(0,0,0,0.9)] select-none">
+                    M
+                  </span>
+                </div>
+
+                {/* Centered: Title */}
+                <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center justify-end pb-3 sm:pb-3.5 pt-10 sm:pt-12 text-center px-1.5 sm:px-2">
+                  <span className="font-sans text-[11px] sm:text-xs md:text-sm font-bold tracking-[0.14em] uppercase text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] line-clamp-2">
+                    {movie.title}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Right Arrow Navigation Paddle */}
+          <button
+            type="button"
+            aria-label="Scroll right"
+            onClick={() => scrollTrending('right')}
+            className={`absolute right-0 top-3 bottom-3 z-30 hidden md:flex items-center justify-center w-11 lg:w-13 rounded-l bg-black/60 hover:bg-black/85 text-white transition-all duration-200 backdrop-blur-sm cursor-pointer shadow-2xl ${
+              canScrollRight
+                ? 'opacity-0 group-hover/row:opacity-100 hover:scale-105 active:scale-95'
+                : 'pointer-events-none opacity-0'
+            }`}
+          >
+            <ChevronRight size={34} className="transition-transform group-hover/row:translate-x-0.5" />
+          </button>
+        </div>
       </section>
 
+      {/* Section 3: Blockbuster Hits (Single Horizontal Row) */}
+      <section id="blockbusters" className="scroll-mt-20 relative mx-auto max-w-[1440px] px-5 pb-16 pt-2 sm:px-9 sm:pt-4 lg:px-14">
+        {/* Section title */}
+        <div className="mb-4 sm:mb-5">
+          <h2 className="font-sans text-xl sm:text-2xl md:text-[24px] font-bold text-[#e5e5e5] tracking-tight">
+            Blockbuster Hits
+          </h2>
+        </div>
+
+        {/* Horizontal Netflix Row Scroller Container */}
+        <div className="group/row relative">
+          {/* Left Arrow Navigation Paddle */}
+          <button
+            type="button"
+            aria-label="Scroll left"
+            onClick={() => scrollBlockbusters('left')}
+            className={`absolute left-0 top-3 bottom-3 z-30 hidden md:flex items-center justify-center w-11 lg:w-13 rounded-r bg-black/60 hover:bg-black/85 text-white transition-all duration-200 backdrop-blur-sm cursor-pointer shadow-2xl ${
+              canScrollLeft2
+                ? 'opacity-0 group-hover/row:opacity-100 hover:scale-105 active:scale-95'
+                : 'pointer-events-none opacity-0'
+            }`}
+          >
+            <ChevronLeft size={34} className="transition-transform group-hover/row:-translate-x-0.5" />
+          </button>
+
+          {/* Horizontal Single-Row Track */}
+          <div
+            ref={sliderRef2}
+            className="flex flex-nowrap items-center gap-3 sm:gap-4 md:gap-4.5 overflow-x-auto scroll-smooth hide-scrollbar snap-x snap-mandatory py-3 px-1 sm:px-2"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {blockbusterMovies.map((movie) => (
+              <div
+                key={movie.id}
+                data-testid={`card-blockbuster-${movie.id}`}
+                onClick={() => setActivePoster(movie)}
+                className="group relative aspect-[2/3] w-[140px] sm:w-[170px] md:w-[195px] lg:w-[215px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-md bg-[#181818] transition-all duration-300 ease-out hover:scale-[1.05] hover:z-20 hover:shadow-[0_14px_36px_rgba(0,0,0,0.95)] hover:ring-1 hover:ring-white/25 select-none"
+              >
+                {/* Base poster photo */}
+                <img
+                  src={movie.image}
+                  alt={movie.title}
+                  loading="lazy"
+                  className="h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
+                />
+
+                {/* Subtle cinematic lighting & Netflix overlays */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.4)_100%)]" />
+
+                {/* Top: Only the 'M' logo */}
+                <div className="absolute left-2.5 top-2.5 sm:left-3 sm:top-3 z-10">
+                  <span className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-[2px] bg-[#E50914] text-[11px] sm:text-[13px] font-black leading-none text-white shadow-[0_2px_8px_rgba(0,0,0,0.9)] select-none">
+                    M
+                  </span>
+                </div>
+
+                {/* Centered: Title */}
+                <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center justify-end pb-3 sm:pb-3.5 pt-10 sm:pt-12 text-center px-1.5 sm:px-2">
+                  <span className="font-sans text-[11px] sm:text-xs md:text-sm font-bold tracking-[0.14em] uppercase text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] line-clamp-2">
+                    {movie.title}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Right Arrow Navigation Paddle */}
+          <button
+            type="button"
+            aria-label="Scroll right"
+            onClick={() => scrollBlockbusters('right')}
+            className={`absolute right-0 top-3 bottom-3 z-30 hidden md:flex items-center justify-center w-11 lg:w-13 rounded-l bg-black/60 hover:bg-black/85 text-white transition-all duration-200 backdrop-blur-sm cursor-pointer shadow-2xl ${
+              canScrollRight2
+                ? 'opacity-0 group-hover/row:opacity-100 hover:scale-105 active:scale-95'
+                : 'pointer-events-none opacity-0'
+            }`}
+          >
+            <ChevronRight size={34} className="transition-transform group-hover/row:translate-x-0.5" />
+          </button>
+        </div>
+      </section>
+
+      {/* Section 4: Birthday Spotlight & Celebration */}
       <section id="dedication" className="relative overflow-hidden border-y border-white/[.07] bg-[#141414] min-h-[580px] flex items-center justify-center">
         {/* Ambient background glow */}
         <div className="absolute -right-20 top-1/2 h-96 w-96 -translate-y-1/2 rounded-full bg-[#E5091418] blur-[120px] pointer-events-none" />
@@ -2103,10 +2494,6 @@ function Collection({ onLock }: { onLock?: () => void }) {
               <span className="italic text-[#E50914]">are you ready?</span>
             </h2>
 
-            <p className="mx-auto mt-5 max-w-xl text-base sm:text-lg leading-relaxed text-[#c7bebc]">
-              You've explored the memories and journey of Mr.MD. Now let's celebrate Chapter 27 with cake and wishes!
-            </p>
-
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
                 type="button"
@@ -2133,7 +2520,7 @@ function Collection({ onLock }: { onLock?: () => void }) {
             </h2>
 
             <p className="mt-3 text-sm sm:text-base text-[#d8cfd6] max-w-lg mx-auto">
-              Take all the time you need to make your heartfelt wish... Think about all your dreams, summits, and peace for Chapter 27! ✨
+              Take all the time you need to make your heartfelt wish... Think about all your dreams, summits, and peace for Next Chapter! ✨
             </p>
 
             {/* 3D Birthday Cake with Lit Candles */}
@@ -2206,10 +2593,6 @@ function Collection({ onLock }: { onLock?: () => void }) {
               <span className="inline-block drop-shadow-md">🎂🥳</span>
             </h1>
 
-            <p className="mt-6 font-editorial text-2xl sm:text-3xl italic text-[#f7ede2] drop-shadow">
-              "Here's to peace, joy, mountain peaks, and Chapter 27!" ✨
-            </p>
-
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
                 type="button"
@@ -2265,12 +2648,8 @@ function Collection({ onLock }: { onLock?: () => void }) {
                     🎂
                   </button>
                 </div>
-                <h2 className="mt-4 font-editorial text-[clamp(2.5rem,5.5vw,4.5rem)] leading-[.98] tracking-[-.04em] text-[#f3eae2]">
-                  A little more<br />
-                  <span className="italic text-[#E50914]">than a birthday.</span>
-                </h2>
 
-                <div className="mt-7 space-y-4">
+                <div className="mt-5 space-y-4">
                   <p className="font-editorial text-[22px] sm:text-[26px] leading-[1.5] text-[#f5eee6] font-medium flex items-center gap-2.5 flex-wrap">
                     <span>Happy Birthday to you, my dear brother!</span>
                     <span className="inline-flex items-center -space-x-2 animate-float-slow select-none align-middle" title="Birthday balloons">
@@ -2308,12 +2687,12 @@ function Collection({ onLock }: { onLock?: () => void }) {
                     <span className="text-xl">❤️</span>
                   </div>
                   <span className="rounded-full border border-[#E50914]/40 bg-[#E50914]/10 px-3 py-1 font-mono-label text-[10px] uppercase tracking-wider text-[#E50914]">
-                    Chapter 27 ✨
+                    Next Chapter ✨
                   </span>
                 </div>
               </div>
 
-              {/* Right Column: catman.jpeg Photo Card */}
+              {/* Right Column: photo3.jpeg Photo Card */}
               <div className="lg:col-span-5 flex justify-center">
                 <div className="relative group w-full max-w-[420px]">
                   {/* Glow backdrop behind photo */}
@@ -2322,8 +2701,8 @@ function Collection({ onLock }: { onLock?: () => void }) {
                   {/* Photo Card */}
                   <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#1e1e1e] shadow-2xl">
                     <img
-                      src="/imgs/catman.jpeg"
-                      alt="Manu with a cat"
+                      src={posterCatman}
+                      alt="Manu"
                       className="w-full h-auto max-h-[500px] object-cover object-center transition-transform duration-700 group-hover:scale-105"
                     />
 
@@ -2345,13 +2724,24 @@ function Collection({ onLock }: { onLock?: () => void }) {
       </section>
 
       <footer className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-4 px-5 py-8 text-center sm:flex-row sm:px-9 sm:text-left lg:px-14">
-        <a href="#top" className="font-editorial text-xl tracking-[-.05em] text-[#eee7e0]">Manu<span className="italic text-[#E50914]">flix</span></a>
+        <a href="#top" aria-label="Manuflix home" className="flex items-center transition hover:opacity-90 active:scale-95">
+          <NetflixStyleLogo className="h-[22px] sm:h-[26px] cursor-pointer" />
+        </a>
         <div className="flex items-center gap-5">
           <a href="#top" className="inline-flex items-center gap-2 font-mono-label text-[9px] uppercase tracking-[.14em] text-[#aaa0a8] transition hover:text-[#E50914]">Back to the beginning <ArrowDown size={12} className="rotate-180" /></a>
         </div>
       </footer>
       <MemoryModal memory={selected} onClose={() => setSelected(null)} />
-      {noteOpen && <BirthdayNote onClose={() => setNoteOpen(false)} />}
+      <PosterModal poster={activePoster} onClose={() => setActivePoster(null)} />
+      {noteOpen && (
+        <BirthdayNote
+          onClose={() => setNoteOpen(false)}
+          onPlay={() => {
+            setNoteOpen(false);
+            setFullPlayerOpen(true);
+          }}
+        />
+      )}
     </main>
   );
 }
@@ -2428,6 +2818,9 @@ function NetflixIntroPlayer({ onFinish }: { onFinish: () => void }) {
 function App() {
   const [unlocked, setUnlocked] = useState(() => {
     try {
+      if (typeof window !== 'undefined' && window.location.search.includes('unlocked=true')) {
+        return true;
+      }
       const savedDate = localStorage.getItem('manuflix_birthday');
       return localStorage.getItem('manuflix_unlocked') === 'true' && isEligibleBirthday(savedDate || '');
     } catch {

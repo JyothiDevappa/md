@@ -715,5 +715,16 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
   }
 }
 
+.hero-person-pos {
+  object-position: 98% 20%;
+}
+
+@media (min-width: 640px) {
+  .hero-person-pos {
+    object-position: 85% center;
+  }
+}
+
+
 
 
