@@ -2176,17 +2176,17 @@ function Collection({ onLock }: { onLock?: () => void }) {
             alt="Documentary of Mr.MD"
             className="hero-person-pos h-full w-full object-cover filter brightness-[0.92] contrast-[1.06]"
           />
-          {/* Full-bleed cinematic dark overlay across 100% of the banner */}
-          <div className="pointer-events-none absolute inset-0 bg-black/30" />
+          {/* Full-bleed cinematic dark overlay across 100% of the banner (desktop only) */}
+          <div className="pointer-events-none absolute inset-0 bg-black/30 hidden sm:block" />
 
-          {/* Full-width gradient: solid deep black behind text on left, smoothly covering the entire right side */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/80 via-[42%] to-[#141414]/30" />
+          {/* Full-width gradient: solid deep black behind text on left, smoothly covering the entire right side (desktop only) */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/80 via-[42%] to-[#141414]/30 hidden sm:block" />
 
-          {/* Top dark gradient for header blending */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#141414]/90 via-[#141414]/40 to-transparent" />
+          {/* Top dark gradient for header blending (desktop only) */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#141414]/90 via-[#141414]/40 to-transparent hidden sm:block" />
 
-          {/* Bottom fade into collection across the full banner */}
-          <div className="pointer-events-none absolute bottom-0 inset-x-0 h-48 sm:h-44 bg-gradient-to-t from-[#141414] via-[#141414]/85 to-transparent" />
+          {/* Bottom fade into collection across the full banner (desktop only) */}
+          <div className="pointer-events-none absolute bottom-0 inset-x-0 h-48 sm:h-44 bg-gradient-to-t from-[#141414] via-[#141414]/85 to-transparent hidden sm:block" />
         </div>
 
         {/* Netflix Right-Side Rating Badge (like TV-14 in reference image) */}
